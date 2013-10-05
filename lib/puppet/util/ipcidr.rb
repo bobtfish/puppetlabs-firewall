@@ -5,13 +5,24 @@ module Puppet
   module Util
     class IPCidr < IPAddr
       def initialize(ipaddr)
-        begin
-          super(ipaddr)
-        rescue ArgumentError => e
-          if e.message =~ /invalid address/
-            raise ArgumentError, "Invalid address from IPAddr.new: #{ipaddr}"
-          else
-            raise e
+        if ipaddr =~ /^!/
+          @inverse = true
+          ipaddr.gsub!(/^!/, '')
+        end
+        if ipaddr == 'LOCAL'
+          @local = true
+        else
+          if ipaddr == ''
+            ipaddr = '0.0.0.0/0'
+          end
+          begin
+            super(ipaddr)
+          rescue ArgumentError => e
+            if e.message =~ /invalid address/
+              raise ArgumentError, "Invalid address from IPAddr.new: #{ipaddr}"
+            else
+              raise e
+            end
           end
         end
       end
@@ -34,7 +45,15 @@ module Puppet
       end
 
       def cidr
-        cidr = sprintf("%s/%s", self.to_s, self.prefixlen)
+        cidr = nil
+        if @local
+          cidr = 'LOCAL'
+        else
+          cidr = sprintf("%s/%s", self.to_s, self.prefixlen)
+        end
+        if @inverse
+          cidr = "!#{cidr}"
+        end
         cidr
       end
     end
